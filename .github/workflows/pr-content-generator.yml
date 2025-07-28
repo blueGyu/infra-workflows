@@ -1,0 +1,63 @@
+name: PR Content Generator
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  generate-pr-content:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    outputs:
+      pr-title: ${{ steps.generate.outputs.pr-title }}
+      pr-body: ${{ steps.generate.outputs.pr-body }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: npm install @actions/core openai tiktoken
+
+      - name: Generate PR content
+        id: generate
+        run: |
+          node scripts/generate-pr-content.mjs origin/${{ github.event.pull_request.base.ref }} origin/${{ github.event.pull_request.head.ref }} ${{ github.event.pull_request.number }}
+
+  update-pr-content:
+    runs-on: ubuntu-latest
+    needs: generate-pr-content
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update PR description
+        uses: actions/github-script@v7
+        env:
+          PR_TITLE: ${{ needs.generate-pr-content.outputs.pr-title }}
+          PR_BODY: ${{ needs.generate-pr-content.outputs.pr-body }}
+        with:
+          script: |
+            const title = process.env.PR_TITLE || '제목 없음';
+            const body = process.env.PR_BODY || '본문 없음';
+
+            console.log('Title length:', title.length);
+            console.log('Body length:', body.length);
+
+            const { data: pr } = await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              title: title,
+              body: body
+            });
+            console.log('PR updated successfully');
