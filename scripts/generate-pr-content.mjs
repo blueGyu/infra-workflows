@@ -22,6 +22,7 @@ async function generatePrContent() {
 
   const baseBranch = process.argv[2];
   const featureBranch = process.argv[3];
+  const prNumber = process.argv[4] || "N/A";
 
   const gitDiff = getGitDiff(baseBranch, featureBranch);
 
@@ -70,7 +71,7 @@ ${gitDiff}
    - "## 📝 주요 변경사항"에는 변경된 기능이나 동작만 요약
    - 패키지 변경이 있을 경우 "## 🔍 변경된 파일"에 변경 목적과 영향 기술
    - "## 🎯 변경 이유"에는 왜 이 변경이 필요한지 설명
-   - "## Merge Commit 제목"에는 PR 제목과 동일하지만 "(수정중)" 부분을 제거
+   - "## Merge Commit 제목"에는 PR 제목과 동일하지만 앞 부분에 "Merge PR #${prNumber}: " 추가, 뒷 부분 "(수정중)" 제거
    - "## Merge Commit 내용"에는 PR 본문의 핵심 내용을 요약하여 리스트 형식으로 작성
    - PR 템플릿 내 주석(<!-- ... -->)은 모두 제거
 

@@ -29,7 +29,7 @@ jobs:
       - name: Generate PR content
         id: generate
         run: |
-          node scripts/generate-pr-content.mjs origin/${{ github.event.pull_request.base.ref }} origin/${{ github.event.pull_request.head.ref }}
+          node scripts/generate-pr-content.mjs origin/${{ github.event.pull_request.base.ref }} origin/${{ github.event.pull_request.head.ref }} ${{ github.event.pull_request.number }}
 
   update-pr-content:
     runs-on: ubuntu-latest
