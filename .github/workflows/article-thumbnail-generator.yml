@@ -1,0 +1,88 @@
+name: Article Thumbnail Generator
+
+on:
+  push:
+    paths:
+      - "src/**/*.mdx"
+      - "src/**/*.md"
+
+jobs:
+  validate-markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 전체 히스토리를 가져와서 변경사항을 추적할 수 있도록 함
+          token: ${{ secrets.PERSONAL_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: |
+          npm install @actions/core gray-matter
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          # 이전 커밋과 현재 커밋 사이의 변경된 파일들 가져오기
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.(mdx|md)$' | grep '^src/' || true)
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+      - name: Validate markdown files
+        if: steps.changed-files.outputs.changed_files != ''
+        run: |
+          node scripts/validate-markdown.mjs ${{ steps.changed-files.outputs.changed_files }}
+
+  generate-thumbnails:
+    runs-on: ubuntu-latest
+    needs: validate-markdown
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 전체 히스토리를 가져와서 변경사항을 추적할 수 있도록 함
+          token: ${{ secrets.PERSONAL_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: |
+          npm install gray-matter satori @resvg/resvg-js
+
+      - name: Get changed files
+        id: changed-files
+        run: |
+          # 이전 커밋과 현재 커밋 사이의 변경된 파일들 가져오기
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E '\.(mdx|md)$' | grep '^src/' || true)
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+      - name: Generate thumbnails
+        if: steps.changed-files.outputs.changed_files != ''
+        run: |
+          node scripts/generate-thumbnail.mjs ${{ steps.changed-files.outputs.changed_files }}
+
+      - name: Commit and push thumbnails
+        if: steps.changed-files.outputs.changed_files != ''
+        run: |
+          git config --local user.email "bluegyufordev@gmail.com"
+          git config --local user.name "blueGyu"
+          git add .
+          git commit -m "Auto-generate thumbnails for changed posts" || echo "No changes to commit"
+          git push
